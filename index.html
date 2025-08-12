@@ -180,7 +180,7 @@ function renderRound(){
   roundNo.textContent = (roundIdx+1).toString();
   goalEl.textContent = round.goal;
   limitEl.textContent = round.limit.toString();
-  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.`;
+  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội sẽ chọn số thẻ đúng nhất và giơ lên.`;
   revealBtn.disabled = true; stopTimer(); timerEl.textContent = fmt(parseInt(sel.value,10)||30);
   buildCards();
 }
