@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MLN131</title>
+<style>
+  :root{
+    --bg:#020617; --panel:#0b1220; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
+    --green:#22c55e; --blue:#3b82f6; --amber:#f59e0b;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--text);font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+
+  header{position:sticky;top:0;z-index:10;display:flex;gap:10px;align-items:center;flex-wrap:wrap;
+    padding:12px 16px;border-bottom:1px solid var(--border);background:rgba(2,6,23,.85);backdrop-filter:blur(6px)}
+  h1{font-size:16px;margin:0;font-weight:800}
+  .ctrl{display:flex;gap:8px;align-items:center;margin-left:auto;flex-wrap:wrap}
+  select,button{background:var(--panel);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:8px 10px;font-weight:700}
+  button.primary{background:linear-gradient(180deg,#2563eb,#1d4ed8);border-color:#1e40af}
+  button.warn{background:linear-gradient(180deg,#f59e0b,#b45309);border-color:#92400e}
+  button:disabled{opacity:.55;cursor:not-allowed}
+  .timer{font-size:22px;font-weight:900;border:1px solid var(--border);background:var(--panel);border-radius:10px;padding:6px 10px;min-width:90px;text-align:center}
+
+  main{max-width:1100px;margin:0 auto;padding:16px 16px 96px}
+
+  /* Vùng mục tiêu – nổi bật ở giữa */
+  .goal{display:grid;place-items:center;border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;
+    background:radial-gradient(80% 120% at 50% -10%,rgba(59,130,246,.18),transparent 60%),
+               linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));}
+  .goal h2{margin:6px 0 4px 0;font-size:22px;text-align:center}
+  .goal small{color:var(--muted);text-align:center}
+  .goal .meta{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:6px;color:var(--muted)}
+
+  /* Lưới thẻ */
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:16px}
+  .card{position:relative;border:1px solid var(--border);border-radius:16px;padding:18px 16px;min-height:74px;background:linear-gradient(180deg,#0e1628,#0a1220);
+    display:flex;align-items:center;justify-content:center;text-align:center;font-weight:800;user-select:none}
+  .card .badge{position:absolute;left:10px;top:10px;border:1px solid var(--border);background:#0a1220;border-radius:999px;min-width:28px;min-height:28px;
+    display:grid;place-items:center;font-weight:900}
+  .card.reveal.correct{outline:2px solid var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.28) inset}
+  .card.reveal.incorrect{opacity:.5;filter:grayscale(40%)}
+
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;color:var(--muted);font-size:13px}
+
+  /* Bảng điểm */
+  .score{margin-top:18px;border:1px solid var(--border);border-radius:16px;padding:12px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
+  .teams{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+  .team{border:1px solid var(--border);border-radius:14px;padding:10px;background:var(--panel)}
+  .team input{width:100%;background:var(--panel);border:1px solid #223;color:var(--text);padding:8px;border-radius:10px;font-weight:800;text-align:center;margin-bottom:8px}
+  .team .pt{display:flex;align-items:center;justify-content:center;gap:8px}
+  .team .pt .v{font-size:22px;font-weight:900;min-width:30px;text-align:center}
+
+  /* Nhãn nhỏ */
+  label.small{font-size:12px;color:var(--muted);font-weight:600}
+</style>
+</head>
+<body>
+<header>
+  <h1> Game “Ghép Liên Minh” </h1>
+  <div class="ctrl">
+    <label for="sel" class="small">Thời gian:</label>
+    <select id="sel">
+      <option value="15">15s</option>
+      <option value="30" selected>30s</option>
+      <option value="45">45s</option>
+      <option value="60">60s</option>
+    </select>
+    <label for="visible" class="small">Số thẻ/vòng:</label>
+    <select id="visible">
+      <option value="6" selected>6</option>
+      <option value="7">7</option>
+      <option value="8">8</option>
+    </select>
+    <div id="timer" class="timer">00:30</div>
+    <button id="start" class="primary">Bắt đầu vòng</button>
+    <button id="reveal" class="warn" disabled>Hiện đáp án</button>
+    <button id="next">Vòng tiếp</button>
+  </div>
+</header>
+
+<main>
+  <!-- Mục tiêu ở giữa -->
+  <section class="goal">
+    <div style="text-align:center">
+      <div class="meta">Vòng <b id="roundNo">1</b>/<span id="roundTotal">0</span> • Đúng: <b id="limit">0</b> thẻ</div>
+      <h2 id="goal">Mục tiêu sẽ hiển thị ở đây</h2>
+      <small id="rule">Chỉ có 0 thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.</small>
+    </div>
+  </section>
+
+  <!-- Lưới thẻ có đánh số 1..N đặt ở dưới mục tiêu -->
+  <section id="grid" class="grid"></section>
+
+  <div class="row">
+    <button id="reshuffle">Đổi vị trí/thẻ nhiễu</button>
+    <span>• Mỗi vòng: đáp án đúng cố định; các thẻ còn lại chọn ngẫu nhiên từ 12 thẻ gốc. • Thẻ sẽ đánh số từ 1 → N.</span>
+  </div>
+
+  <section class="score">
+    <div class="row">Sau khi hiện đáp án, cộng điểm cho đội trả lời đúng.</div>
+    <div class="teams" id="teams"></div>
+  </section>
+</main>
+
+<script>
+// 12 thẻ cố định
+const FIXED_CARDS = [
+  "Công nhân","Nông dân","Trí thức","Doanh nhân","Thanh niên","Phụ nữ",
+  "Dân tộc thiểu số","Lực lượng vũ trang","Giáo viên","Bác sĩ","Công chức","Nghệ sĩ"
+];
+
+// Vòng với đáp án đúng cố định (2 hoặc 4)
+const ROUNDS = [
+  { goal: "Phát triển công nghiệp công nghệ cao", correct: ["Công nhân","Trí thức","Doanh nhân","Thanh niên"], limit: 4 },
+  { goal: "Xây dựng nông thôn mới", correct: ["Nông dân","Trí thức","Công nhân","Thanh niên"], limit: 4 },
+  { goal: "Bảo vệ Tổ quốc và ổn định xã hội", correct: ["Lực lượng vũ trang","Công nhân","Nông dân","Thanh niên"], limit: 4 },
+  { goal: "Hội nhập quốc tế, nâng cao năng lực cạnh tranh", correct: ["Doanh nhân","Trí thức","Công chức","Thanh niên"], limit: 4 },
+  { goal: "Phát triển kinh tế tri thức, kinh tế số", correct: ["Trí thức","Công nhân"], limit: 2 },
+  { goal: "Giảm bất bình đẳng, củng cố khối đại đoàn kết", correct: ["Trí thức","Công nhân","Phụ nữ","Dân tộc thiểu số"], limit: 4 },
+  { goal: "Nâng cao chất lượng y tế cộng đồng", correct: ["Bác sĩ","Công chức"], limit: 2 },
+  { goal: "Đổi mới giáo dục và phát triển khoa học", correct: ["Giáo viên","Trí thức"], limit: 2 },
+  { goal: "Phát triển văn hóa và bản sắc dân tộc", correct: ["Nghệ sĩ","Dân tộc thiểu số"], limit: 2 },
+  { goal: "Phát triển doanh nghiệp đổi mới sáng tạo", correct: ["Doanh nhân","Trí thức","Công nhân","Công chức"], limit: 4 }
+];
+
+// State
+let roundIdx = 0;
+let secs = 30;
+let t = null;
+let randSeed = 0;
+
+// Elements
+const sel = document.getElementById('sel');
+const visibleSel = document.getElementById('visible');
+const timerEl = document.getElementById('timer');
+const startBtn = document.getElementById('start');
+const revealBtn = document.getElementById('reveal');
+const nextBtn = document.getElementById('next');
+const reshuffleBtn = document.getElementById('reshuffle');
+const goalEl = document.getElementById('goal');
+const ruleEl = document.getElementById('rule');
+const limitEl = document.getElementById('limit');
+const grid = document.getElementById('grid');
+const roundNo = document.getElementById('roundNo');
+const roundTotal = document.getElementById('roundTotal');
+roundTotal.textContent = ROUNDS.length.toString();
+
+function fmt(s){const m=Math.floor(s/60);const ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
+function stopTimer(){ if(t) { clearTimeout(t); t=null; } }
+function tick(){ if(secs<=0){ stopTimer(); revealBtn.disabled=false; return;} secs--; timerEl.textContent=fmt(secs); t=setTimeout(tick,1000);} 
+function startTimer(){ stopTimer(); secs=parseInt(sel.value,10)||30; timerEl.textContent=fmt(secs); revealBtn.disabled=true; tick(); }
+
+function rng(max){ return Math.floor((Math.random()*100000 + randSeed) % max); }
+function shuffle(arr){ const a=arr.slice(); for(let i=a.length-1;i>0;i--){ const j=rng(i+1); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+// tạo N thẻ (N = 6..8): luôn chứa toàn bộ đáp án đúng + thẻ nhiễu cho đủ N, rồi xáo thứ tự
+function buildCards(){
+  const round = ROUNDS[roundIdx];
+  const N = parseInt(visibleSel.value,10); // 6..8
+  const correctSet = new Set(round.correct);
+
+  // Pool thẻ nhiễu có thể chọn (loại bỏ các thẻ đúng của vòng)
+  const pool = FIXED_CARDS.filter(c=>!correctSet.has(c));
+  const need = Math.max(0, N - round.correct.length);
+  const distractors = shuffle(pool).slice(0, need);
+  const merged = shuffle([...round.correct, ...distractors]).slice(0, N);
+
+  grid.innerHTML='';
+  merged.forEach((label, idx)=>{
+    const d=document.createElement('div');
+    d.className='card';
+    d.innerHTML = `<div class="badge">${idx+1}</div><div>${label}</div>`;
+    grid.appendChild(d);
+  });
+}
+
+function renderRound(){
+  const round = ROUNDS[roundIdx];
+  roundNo.textContent = (roundIdx+1).toString();
+  goalEl.textContent = round.goal;
+  limitEl.textContent = round.limit.toString();
+  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.`;
+  revealBtn.disabled = true; stopTimer(); timerEl.textContent = fmt(parseInt(sel.value,10)||30);
+  buildCards();
+}
+
+function reveal(){
+  const round = ROUNDS[roundIdx];
+  const correct = new Set(round.correct);
+  Array.from(grid.children).forEach(card=>{
+    const el = card; const label = el.textContent.replace(/^[0-9]+/,'').trim();
+    el.classList.add('reveal', correct.has(label) ? 'correct' : 'incorrect');
+  });
+}
+
+startBtn.addEventListener('click', ()=>{ randSeed++; startTimer(); buildCards(); });
+revealBtn.addEventListener('click', ()=>{ stopTimer(); reveal(); });
+nextBtn.addEventListener('click', ()=>{ roundIdx=(roundIdx+1)%ROUNDS.length; renderRound(); });
+reshuffleBtn.addEventListener('click', ()=>{ randSeed++; buildCards(); });
+visibleSel.addEventListener('change', ()=>{ buildCards(); });
+
+// init
+renderRound();
+
+// bảng điểm 2 đội (giữ nguyên, có thể đổi số đội nếu cần)
+(function makeTeams(){
+  const wrap = document.getElementById('teams');
+  for(let i=0;i<2;i++){
+    const box=document.createElement('div');
+    box.className='team';
+    box.innerHTML=`
+      <input value="Đội ${i+1}" />
+      <div class="pt">
+        <button data-act="dec" data-i="${i}">−</button>
+        <div class="v" id="sc-${i}">0</div>
+        <button data-act="inc" data-i="${i}">＋</button>
+      </div>`;
+    wrap.appendChild(box);
+  }
+  wrap.addEventListener('click',(e)=>{
+    const btn=e.target; if(!(btn instanceof HTMLElement) || btn.tagName!=='BUTTON') return;
+    const i=parseInt(btn.getAttribute('data-i'),10); const act=btn.getAttribute('data-act');
+    const numEl=document.getElementById('sc-'+i); const val=parseInt(numEl.textContent||'0',10);
+    numEl.textContent=String(Math.max(0, val + (act==='inc'?1:-1)));
+  });
+})();
+</script>
+</body>
+</html>
