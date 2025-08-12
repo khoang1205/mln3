@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>MLN131</title>
+<title>Chương 5 – Ghép Liên Minh (6–8 thẻ, có đánh số + dẫn chứng)</title>
 <style>
   :root{
     --bg:#020617; --panel:#0b1220; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
@@ -51,6 +51,15 @@
   .team .pt{display:flex;align-items:center;justify-content:center;gap:8px}
   .team .pt .v{font-size:22px;font-weight:900;min-width:30px;text-align:center}
 
+  /* Panel dẫn chứng */
+  .evidence{margin-top:16px;border:1px solid var(--border);border-radius:16px;padding:14px;background:linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
+  .evidence h3{margin:0 0 8px 0;font-size:16px}
+  .evidence ol{margin:0;padding:0 0 0 18px}
+  .evidence li{margin:8px 0}
+  .evidence small{color:var(--muted)}
+  .evidence a{color:#93c5fd;text-decoration:none}
+  .evidence a:hover{text-decoration:underline}
+
   /* Nhãn nhỏ */
   label.small{font-size:12px;color:var(--muted);font-weight:600}
 </style>
@@ -85,7 +94,7 @@
     <div style="text-align:center">
       <div class="meta">Vòng <b id="roundNo">1</b>/<span id="roundTotal">0</span> • Đúng: <b id="limit">0</b> thẻ</div>
       <h2 id="goal">Mục tiêu sẽ hiển thị ở đây</h2>
-      <small id="rule">Chỉ có 0 thẻ đúng. Các đội sẽ chọn số thẻ đúng nhất và giơ lên .</small>
+      <small id="rule">Chỉ có 0 thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.</small>
     </div>
   </section>
 
@@ -96,6 +105,12 @@
     <button id="reshuffle">Đổi vị trí/thẻ nhiễu</button>
     <span>• Mỗi vòng: đáp án đúng cố định; các thẻ còn lại chọn ngẫu nhiên từ 12 thẻ gốc. • Thẻ sẽ đánh số từ 1 → N.</span>
   </div>
+
+  <!-- Panel dẫn chứng tự mở khi bấm "Hiện đáp án" -->
+  <section id="evidence" class="evidence" hidden>
+    <h3>Dẫn chứng cho đáp án</h3>
+    <ol id="ev-list"></ol>
+  </section>
 
   <section class="score">
     <div class="row">Sau khi hiện đáp án, cộng điểm cho đội trả lời đúng.</div>
@@ -110,18 +125,94 @@ const FIXED_CARDS = [
   "Dân tộc thiểu số","Lực lượng vũ trang","Giáo viên","Bác sĩ","Công chức","Nghệ sĩ"
 ];
 
-// Vòng với đáp án đúng cố định (2 hoặc 4)
+/*\
+ * ROUNDS: thêm "sources" cho từng đáp án đúng.
+ * Có thể là chuỗi hoặc mảng chuỗi. Nếu chuỗi bắt đầu bằng "http", UI sẽ tự tạo link.
+ * 👉 Bạn chỉ cần thay nội dung trong mảng/chuỗi bằng nguồn thật của bạn.
+ */
 const ROUNDS = [
-  { goal: "Phát triển công nghiệp công nghệ cao", correct: ["Công nhân","Trí thức","Doanh nhân","Thanh niên"], limit: 4 },
-  { goal: "Xây dựng nông thôn mới", correct: ["Nông dân","Trí thức","Công nhân","Thanh niên"], limit: 4 },
-  { goal: "Bảo vệ Tổ quốc và ổn định xã hội", correct: ["Lực lượng vũ trang","Công nhân","Nông dân","Thanh niên"], limit: 4 },
-  { goal: "Hội nhập quốc tế, nâng cao năng lực cạnh tranh", correct: ["Doanh nhân","Trí thức","Công chức","Thanh niên"], limit: 4 },
-  { goal: "Phát triển kinh tế tri thức, kinh tế số", correct: ["Trí thức","Công nhân"], limit: 2 },
-  { goal: "Giảm bất bình đẳng, củng cố khối đại đoàn kết", correct: ["Trí thức","Công nhân","Phụ nữ","Dân tộc thiểu số"], limit: 4 },
-  { goal: "Nâng cao chất lượng y tế cộng đồng", correct: ["Bác sĩ","Công chức"], limit: 2 },
-  { goal: "Đổi mới giáo dục và phát triển khoa học", correct: ["Giáo viên","Trí thức"], limit: 2 },
-  { goal: "Phát triển văn hóa và bản sắc dân tộc", correct: ["Nghệ sĩ","Dân tộc thiểu số"], limit: 2 },
-  { goal: "Phát triển doanh nghiệp đổi mới sáng tạo", correct: ["Doanh nhân","Trí thức","Công nhân","Công chức"], limit: 4 }
+  { goal: "Phát triển công nghiệp công nghệ cao",
+    correct: ["Công nhân","Trí thức","Doanh nhân","Thanh niên"], limit: 4,
+    sources: {
+      "Công nhân": ["(Bổ sung link/nguồn cho vai trò công nhân trong CN hoá – HĐH)"],
+      "Trí thức": ["(Nguồn về kinh tế tri thức/đổi mới sáng tạo đóng góp của trí thức)"],
+      "Doanh nhân": ["(Nguồn về doanh nghiệp công nghệ cao/đổi mới sáng tạo)"],
+      "Thanh niên": ["(Nguồn về lực lượng trẻ, khởi nghiệp, STEM)"]
+    }
+  },
+  { goal: "Xây dựng nông thôn mới",
+    correct: ["Nông dân","Trí thức","Công nhân","Thanh niên"], limit: 4,
+    sources: {
+      "Nông dân": ["(vai trò nông dân trong nông thôn mới)"],
+      "Trí thức": ["( chuyển giao KHKT/khuyến nông)"],
+      "Công nhân": ["( chế biến nông sản, hạ tầng CN phụ trợ)"],
+      "Thanh niên": ["( thanh niên tình nguyện/xây dựng cộng đồng)"]
+    }
+  },
+  { goal: "Bảo vệ Tổ quốc và ổn định xã hội",
+    correct: ["Lực lượng vũ trang","Công nhân","Nông dân","Thanh niên"], limit: 4,
+    sources: {
+      "Lực lượng vũ trang": ["( quốc phòng toàn dân)"],
+      "Công nhân": ["( an ninh kinh tế, đảm bảo chuỗi cung ứng chiến lược)"],
+      "Nông dân": ["(N thế trận lòng dân/khu vực nông thôn)"],
+      "Thanh niên": ["( nghĩa vụ, lực lượng dự bị)"],
+    }
+  },
+  { goal: "Hội nhập quốc tế, nâng cao năng lực cạnh tranh",
+    correct: ["Doanh nhân","Trí thức","Công chức","Thanh niên"], limit: 4,
+    sources: {
+      "Doanh nhân": ["( xuất khẩu, FDI, đổi mới mô hình quản trị)"] ,
+      "Trí thức": ["( R&D, tiêu chuẩn quốc tế)"] ,
+      "Công chức": ["(cải cách thể chế, môi trường kinh doanh)"] ,
+      "Thanh niên": ["(lực lượng trẻ, khởi nghiệp, STEM)"] ,
+    }
+  },
+  { goal: "Phát triển kinh tế tri thức, kinh tế số",
+    correct: ["Trí thức","Công nhân"], limit: 2,
+    sources: {
+      "Trí thức": ["( chuyển giao công nghệ, AI/ dữ liệu)"] ,
+      "Công nhân": ["( kỹ năng số, tự động hoá trong sản xuất)"] ,
+    }
+  },
+  { goal: "Giảm bất bình đẳng, củng cố khối đại đoàn kết",
+    correct: ["Trí thức","Công nhân","Phụ nữ","Dân tộc thiểu số"], limit: 4,
+    sources: {
+      "Trí thức": ["(tư vấn chính sách xã hội)"] ,
+      "Công nhân": ["( an sinh cho lao động/nhà ở công nhân)"] ,
+      "Phụ nữ": ["( bình đẳng giới, chăm sóc SKSS)"] ,
+      "Dân tộc thiểu số": ["(chính sách dân tộc/giảm nghèo bền vững)"] ,
+    }
+  },
+  { goal: "Nâng cao chất lượng y tế cộng đồng",
+    correct: ["Bác sĩ","Công chức"], limit: 2,
+    sources: {
+      "Bác sĩ": ["( hệ thống y tế cơ sở, tiêm chủng)"] ,
+      "Công chức": ["( quản lý y tế, BHYT)"] ,
+    }
+  },
+  { goal: "Đổi mới giáo dục và phát triển khoa học",
+    correct: ["Giáo viên","Trí thức"], limit: 2,
+    sources: {
+      "Giáo viên": ["( chương trình GDPT, chuyển đổi số giáo dục)"] ,
+      "Trí thức": ["( nghiên cứu khoa học, đại học)"] ,
+    }
+  },
+  { goal: "Phát triển văn hóa và bản sắc dân tộc",
+    correct: ["Nghệ sĩ","Dân tộc thiểu số"], limit: 2,
+    sources: {
+      "Nghệ sĩ": ["( phát triển công nghiệp văn hoá)"] ,
+      "Dân tộc thiểu số": ["( bảo tồn di sản, đa dạng văn hoá)"] ,
+    }
+  },
+  { goal: "Phát triển doanh nghiệp đổi mới sáng tạo",
+    correct: ["Doanh nhân","Trí thức","Công nhân","Công chức"], limit: 4,
+    sources: {
+      "Doanh nhân": ["(hệ sinh thái khởi nghiệp, quỹ đầu tư)"] ,
+      "Trí thức": ["( sở hữu trí tuệ, phòng thí nghiệm)"] ,
+      "Công nhân": ["( năng suất lao động, kỹ năng)"] ,
+      "Công chức": ["(chính sách hỗ trợ DN đổi mới)"] ,
+    }
+  }
 ];
 
 // State
@@ -144,6 +235,8 @@ const limitEl = document.getElementById('limit');
 const grid = document.getElementById('grid');
 const roundNo = document.getElementById('roundNo');
 const roundTotal = document.getElementById('roundTotal');
+const evidenceEl = document.getElementById('evidence');
+const evList = document.getElementById('ev-list');
 roundTotal.textContent = ROUNDS.length.toString();
 
 function fmt(s){const m=Math.floor(s/60);const ss=s%60;return String(m).padStart(2,'0')+':'+String(ss).padStart(2,'0');}
@@ -170,7 +263,8 @@ function buildCards(){
   merged.forEach((label, idx)=>{
     const d=document.createElement('div');
     d.className='card';
-    d.innerHTML = `<div class="badge">${idx+1}</div><div>${label}</div>`;
+    d.dataset.label = label; // lưu nhãn gốc để so khớp
+    d.innerHTML = `<div class="badge">${idx+1}</div><div class="lab">${label}</div>`;
     grid.appendChild(d);
   });
 }
@@ -180,25 +274,63 @@ function renderRound(){
   roundNo.textContent = (roundIdx+1).toString();
   goalEl.textContent = round.goal;
   limitEl.textContent = round.limit.toString();
-  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội sẽ chọn số thẻ đúng nhất và giơ lên.`;
+  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.`;
   revealBtn.disabled = true; stopTimer(); timerEl.textContent = fmt(parseInt(sel.value,10)||30);
+  evidenceEl.hidden = true; evList.innerHTML = '';
   buildCards();
+}
+
+function normalizeSources(src){
+  if(!src) return [];
+  if(Array.isArray(src)) return src;
+  return [src];
+}
+function linkify(text){
+  if(/^https?:\/\//i.test(text)){
+    const url = text;
+    return `<a href="${url}" target="_blank" rel="noopener">${url}</a>`;
+  }
+  return text;
+}
+
+function buildEvidence(){
+  const round = ROUNDS[roundIdx];
+  const cards = Array.from(grid.children);
+  // Lập danh sách đúng và gắn số thẻ hiện tại
+  const items = round.correct.map(lbl=>{
+    const idx = cards.findIndex(c=>c.dataset.label===lbl);
+    const num = idx>=0? idx+1 : null;
+    const srcs = normalizeSources(round.sources && round.sources[lbl]);
+    return {label: lbl, idx, num, srcs};
+  }).sort((a,b)=> (a.idx - b.idx));
+
+  evList.innerHTML = '';
+  items.forEach(it=>{
+    const li = document.createElement('li');
+    const n = (it.num!=null? it.num+') ' : '');
+    const srcHtml = it.srcs.length ? it.srcs.map(s=>'• '+linkify(s)).join('<br>') : '<em>Chưa thêm nguồn</em>';
+    li.innerHTML = `<b>${n}${it.label}</b><br><small>${srcHtml}</small>`;
+    evList.appendChild(li);
+  });
+
+  evidenceEl.hidden = false;
 }
 
 function reveal(){
   const round = ROUNDS[roundIdx];
   const correct = new Set(round.correct);
   Array.from(grid.children).forEach(card=>{
-    const el = card; const label = el.textContent.replace(/^[0-9]+/,'').trim();
+    const el = card; const label = el.dataset.label;
     el.classList.add('reveal', correct.has(label) ? 'correct' : 'incorrect');
   });
+  buildEvidence(); // tự mở panel dẫn chứng
 }
 
-startBtn.addEventListener('click', ()=>{ randSeed++; startTimer(); buildCards(); });
+startBtn.addEventListener('click', ()=>{ randSeed++; startTimer(); buildCards(); evidenceEl.hidden=true; });
 revealBtn.addEventListener('click', ()=>{ stopTimer(); reveal(); });
 nextBtn.addEventListener('click', ()=>{ roundIdx=(roundIdx+1)%ROUNDS.length; renderRound(); });
-reshuffleBtn.addEventListener('click', ()=>{ randSeed++; buildCards(); });
-visibleSel.addEventListener('change', ()=>{ buildCards(); });
+reshuffleBtn.addEventListener('click', ()=>{ randSeed++; buildCards(); evidenceEl.hidden=true; });
+visibleSel.addEventListener('change', ()=>{ buildCards(); evidenceEl.hidden=true; });
 
 // init
 renderRound();
