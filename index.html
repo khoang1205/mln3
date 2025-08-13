@@ -3,8 +3,18 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Chương 5 – Ghép Liên Minh (6–8 thẻ, có đánh số + dẫn chứng)</title>
+<title> Ghép Liên Minh </title>
 <style>
+#rule {
+  font-size: 20px; /* hoặc lớn hơn nếu muốn */
+  font-weight: 600; /* làm chữ đậm hơn */
+}
+
+.card .lab {
+  font-size: 20px; /* hoặc lớn hơn nếu muốn */
+  
+}
+
   :root{
     --bg:#020617; --panel:#0b1220; --border:#1f2937; --text:#e5e7eb; --muted:#94a3b8;
     --green:#22c55e; --blue:#3b82f6; --amber:#f59e0b;
@@ -28,7 +38,7 @@
   .goal{display:grid;place-items:center;border:1px solid var(--border);border-radius:18px;padding:18px;margin-bottom:14px;
     background:radial-gradient(80% 120% at 50% -10%,rgba(59,130,246,.18),transparent 60%),
                linear-gradient(180deg,rgba(255,255,255,.03),rgba(255,255,255,.01));}
-  .goal h2{margin:6px 0 4px 0;font-size:22px;text-align:center}
+  .goal h2{margin:6px 0 4px 0;font-size:50px;text-align:center}
   .goal small{color:var(--muted);text-align:center}
   .goal .meta{display:flex;gap:12px;align-items:center;justify-content:center;margin-top:6px;color:var(--muted)}
 
@@ -62,7 +72,20 @@
 
   /* Nhãn nhỏ */
   label.small{font-size:12px;color:var(--muted);font-weight:600}
+   /* ===== Popup hướng dẫn ===== */
+  .modal-backdrop{position:fixed;inset:0;display:none;place-items:center;background:rgba(2,6,23,.7);backdrop-filter:blur(4px);z-index:50}
+  .modal-backdrop.show{display:grid}
+  .modal{width:min(680px,92vw);border:1px solid var(--border);border-radius:20px;padding:16px 16px 14px;background:linear-gradient(180deg,#0e1628,#0a1220)}
+  .modal header{position:unset;background:transparent;border:0;padding:0;margin:0 0 8px 0;display:flex;align-items:center;justify-content:space-between}
+  .modal h2{font-size:20px;margin:0}
+  .modal .content{color:var(--muted);line-height:1.6}
+  .modal .content ol{margin:8px 0 0 18px}
+  .modal .actions{display:flex;gap:10px;justify-content:flex-end;margin-top:14px}
+  .modal .close{background:transparent;border:1px solid var(--border);border-radius:10px;padding:6px 10px}
+  .modal .primary{padding:8px 14px}
+  .modal .foot{display:flex;align-items:center;justify-content:space-between;margin-top:10px;color:var(--muted);font-size:12px}
 </style>
+
 </head>
 <body>
 <header>
@@ -87,6 +110,30 @@
     <button id="next">Vòng tiếp</button>
   </div>
 </header>
+<!-- ===== Popup Hướng dẫn ===== -->
+<div id="guide" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="guide-title">
+  <div class="modal" tabindex="-1">
+    <header>
+      <h2 id="guide-title">Hướng dẫn luật chơi</h2>
+      <button class="close" id="guide-close" aria-label="Đóng">✕</button>
+    </header>
+    <div class="content">
+      <p><b>Mục tiêu:</b> Mỗi vòng sẽ có  một mục tiêu được đề ra để các giai cấp có thể xây dựng cho mục tiêu đó. Có khoảng 7 thẻ giai cấp và trong đó sẽ có thẻ đúng và thẻ sai, nhiệm vụ của các nhóm sẽ là tìm ra các thẻ đúng của mục tiêu vòng đấu</p>
+      <ol>
+        <li>Mỗi vòng hiển thị <b>7</b>  Các thẻ được đánh số <b>1 → 7</b>.</li>
+        <li>Chỉ có đúng <b>2 hoặc 4</b> thẻ (hiển thị trên mục tiêu). Các đội sẽ đưa ra các số thứ tự của thẻ.</li>
+        
+      </ol>
+     </div>
+    <div class="foot">
+      <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="guide-dontshow"> Đừng hiện lại lần sau</label>
+      <div class="actions">
+        <button class="close" id="guide-later">Để sau</button>
+        <button class="primary" id="guide-ok">Đã hiểu</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 <main>
   <!-- Mục tiêu ở giữa -->
@@ -274,7 +321,7 @@ function renderRound(){
   roundNo.textContent = (roundIdx+1).toString();
   goalEl.textContent = round.goal;
   limitEl.textContent = round.limit.toString();
-  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Các đội ghi ra giấy, hết giờ cùng giơ đáp án.`;
+  ruleEl.innerHTML = `Chỉ có <b>${round.limit}</b> thẻ đúng. Khi hết giờ, các đội sẽ giơ các thẻ mà mình cho là đáp án đúng .`;
   revealBtn.disabled = true; stopTimer(); timerEl.textContent = fmt(parseInt(sel.value,10)||30);
   evidenceEl.hidden = true; evList.innerHTML = '';
   buildCards();
@@ -334,7 +381,45 @@ visibleSel.addEventListener('change', ()=>{ buildCards(); evidenceEl.hidden=true
 
 // init
 renderRound();
+(function setupGuide(){
+  const backdrop = document.getElementById('guide');
+  const closeBtn = document.getElementById('guide-close');
+  const okBtn = document.getElementById('guide-ok');
+  const laterBtn = document.getElementById('guide-later');
+  const dontShow = document.getElementById('guide-dontshow');
+  let lastFocus = null;
 
+  function openGuide(force=false){
+    if(!force && localStorage.getItem('guideSeen')==='1') return;
+    lastFocus = document.activeElement;
+    backdrop.classList.add('show');
+    // send focus to modal for accessibility
+    const modal = backdrop.querySelector('.modal');
+    modal.focus();
+    document.addEventListener('keydown', onKeyDown);
+  }
+  function closeGuide(){
+    if(dontShow.checked) localStorage.setItem('guideSeen','1');
+    backdrop.classList.remove('show');
+    document.removeEventListener('keydown', onKeyDown);
+    if(lastFocus && typeof lastFocus.focus==='function') lastFocus.focus();
+  }
+  function onKeyDown(e){
+    if(e.key==='Escape'){ closeGuide(); }
+    if(e.key==='Enter'){ closeGuide(); }
+  }
+  // click outside modal to close
+  backdrop.addEventListener('click', (e)=>{ if(e.target===backdrop) closeGuide(); });
+  closeBtn.addEventListener('click', closeGuide);
+  okBtn.addEventListener('click', closeGuide);
+  laterBtn.addEventListener('click', closeGuide);
+
+  // Mở khi tải xong lần đầu
+  window.addEventListener('load', ()=> openGuide(false));
+
+  // Expose util (tuỳ chọn) để mở lại bằng console: openGuide(true)
+  window.__openGuide = ()=> openGuide(true);
+})();
 // bảng điểm 2 đội (giữ nguyên, có thể đổi số đội nếu cần)
 (function makeTeams(){
   const wrap = document.getElementById('teams');
