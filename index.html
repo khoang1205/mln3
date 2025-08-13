@@ -108,7 +108,7 @@
 
   <!-- Panel dẫn chứng tự mở khi bấm "Hiện đáp án" -->
   <section id="evidence" class="evidence" hidden>
-    <h3>Dẫn chứng cho đáp án</h3>
+    <h3>Giải thích</h3>
     <ol id="ev-list"></ol>
   </section>
 
@@ -338,7 +338,7 @@ renderRound();
 // bảng điểm 2 đội (giữ nguyên, có thể đổi số đội nếu cần)
 (function makeTeams(){
   const wrap = document.getElementById('teams');
-  for(let i=0;i<2;i++){
+  for(let i=0;i<4;i++){
     const box=document.createElement('div');
     box.className='team';
     box.innerHTML=`
